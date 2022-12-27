@@ -1,9 +1,26 @@
 <html>
+  <head>
+    <style>
+      body { font-family: system-ui, sans-serif; }
+      .view { display: none; }
+      .view:target { display: block; }
+      textarea { display: block; width: 60ch; height: 20ch; }
+    </style>
+  </head>
+
   <body>
-    <input id="api-key" type="text" placeholder="OpenAI API Key" />
-    <div id="logged-in" style="display: none;">
-      <button id="fix-grammar">Fix grammar</button>
-      <p id="result"></p>
+    <!-- Views depending on state of extension -->
+    <div id="login" class="view">
+      <input id="api-key" type="text" placeholder="OpenAI API Key" />
+    </div>
+
+    <div id="main" class="view">
+      <textarea id="prompt"></textarea>
+      <button id="run-selection">Run on selection</button>
+      <button id="run-clipboard">Run on clipboard</button>
+      <p>Status: <span id="status">Idle</span></p>
+      <h3>Output</h3>
+      <p id="result">(None so far)</p>
     </div>
     <script src="main.js"></script>
   </body>

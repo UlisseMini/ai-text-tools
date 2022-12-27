@@ -1,37 +1,57 @@
+// --------- Helpers ---------
+
 const validKey = (k) => k && k.length == 51;
 function $(x) {
-  return document.getElementById(x);
+  return document.querySelector(x);
 }
 
 const get = (k) => localStorage.getItem(k);
 const set = (k, v) => localStorage.setItem(k, v);
 
+// --------- OpenAI API helpers ---------
+
+function tokensNeeded(prompt) {
+  // 1 token = ~4 chars
+  return Math.round(prompt.length / 3);
+}
+
 // Process some text via the openai api
-async function complete(prompt) {
-  const resp = await fetch("https://api.openai.com/v1/completions", {
-    method: "POST",
-    body: JSON.stringify({
+async function complete(prompt, options) {
+  options = Object.assign(
+    {
       model: "text-davinci-003",
       prompt: `${prompt}`,
       temperature: 0,
-      max_tokens: 200,
-    }),
+      max_tokens: tokensNeeded(prompt),
+    },
+    options
+  );
+
+  const resp = await fetch("https://api.openai.com/v1/completions", {
+    method: "POST",
+    body: JSON.stringify(options),
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${get("apiKey")}`,
     },
   });
-  const j = await resp.json();
-  // TODO: Use finish_reason to decide on extending length?
-  return j["choices"][0]["text"];
+
+  return await resp.json();
 }
 
-// Fix grammar in text using a call to the openai API
-async function fixGrammar(text) {
-  const prompt = `Fix the grammar, punctuation and formatting in the following text:\n\n${text}\n\nFixed:`;
+async function runPrompt(text) {
+  const prompt = $("#prompt").value.replaceAll("${text}", text);
   const result = await complete(prompt);
-  return result;
+  console.log("API Response", result);
+
+  const usedTokens = result["usage"]["completion_tokens"];
+  console.log(`used ${usedTokens} out of ${tokensNeeded(prompt)}`);
+
+  const resultText = result["choices"][0]["text"];
+  return resultText;
 }
+
+// --------- Extension helpers ---------
 
 async function getCurrentTab() {
   let queryOptions = { active: true, lastFocusedWindow: true };
@@ -40,41 +60,61 @@ async function getCurrentTab() {
   return tab;
 }
 
+function getSelectedString() {
+  return window.getSelection().toString();
+}
+function getClipboardString() {
+  return navigator.clipboard.readText();
+}
+
+// --------- UI bullshit ----------
+
+function navigate(view) {
+  window.location.hash = view;
+}
+
+const startingPrompt =
+  "Fix the grammar, punctuation and formatting in the following text:\n\n${text}\n\nFixed:";
+
+const statuses = { idle: "Idle", api: "Waiting for API response..." };
+const status = (s) => ($("#status").textContent = statuses[s]);
+
 document.addEventListener("DOMContentLoaded", () => {
-  const apiKeyInput = document.getElementById("api-key");
-  const loggedIn = document.getElementById("logged-in");
-  $("fix-grammar").addEventListener("click", async () => {
+  validKey(get("apiKey")) ? navigate("main") : navigate("login");
+  if (!get("prompt")) set("prompt", startingPrompt);
+
+  $("#result").textContent = get("result") || "(None so far)";
+  $("textarea#prompt").value = get("prompt");
+  $("textarea#prompt").addEventListener("change", (e) => {
+    set("prompt", e.target.value);
+  });
+
+  $("#run-selection").addEventListener("click", async () => {
     const tab = await getCurrentTab();
     chrome.scripting.executeScript(
-      {
-        target: { tabId: tab.id },
-        func: () => window.getSelection().toString(),
-      },
+      { target: { tabId: tab.id }, func: getSelectedString },
       async function (r) {
         const selection = r[0].result;
         if (!selection) return console.error("selection is null");
 
-        console.log(selection);
-        const fixed = await fixGrammar(selection);
-        console.log(fixed);
-        $("result").textContent = fixed;
+        status("api");
+        const fixed = await runPrompt(selection);
+        $("#result").textContent = fixed;
+        set("result", fixed);
+        status("idle");
       }
     );
   });
 
-  async function onLoggedIn() {
-    apiKeyInput.style.display = "none";
-    loggedIn.style.display = "block";
-  }
+  $("#run-clipboard").addEventListener("click", async () => {
+    // TODO: must abstract stuff before implementing this & duplicating everything
+    alert("Not implemented yet");
+  });
 
-  if (validKey(get("apiKey"))) {
-    onLoggedIn();
-  }
-
-  apiKeyInput.addEventListener("change", (e) => {
+  $("#api-key").addEventListener("change", (e) => {
     if (validKey(e.target.value)) {
       set("apiKey", e.target.value);
-      onLoggedIn();
+      navigate("main");
     }
   });
 });
