@@ -54,9 +54,6 @@ function getSelectedString() {
     var _a;
     return (_a = window.getSelection()) === null || _a === void 0 ? void 0 : _a.toString();
 }
-async function getClipboardString() {
-    return await navigator.clipboard.readText();
-}
 // --------- UI bullshit ----------
 function navigate(view) {
     window.location.hash = view;
@@ -86,22 +83,30 @@ document.addEventListener("DOMContentLoaded", () => {
     el.prompt.addEventListener("change", () => {
         set("prompt", el.prompt.value);
     });
+    const doTransform = async (text) => {
+        el.status.textContent = statuses.api;
+        const fixed = await runPrompt(text);
+        el.result.textContent = fixed;
+        set("result", fixed);
+        el.status.textContent = statuses.idle;
+    };
     el.selectionButton.addEventListener("click", async () => {
         const tab = await getCurrentTab();
         chrome.scripting.executeScript({ target: { tabId: tab.id }, func: getSelectedString }, async function (r) {
             const selection = r[0].result;
             if (!selection)
                 return console.error("selection is null");
-            el.status.textContent = statuses.api;
-            const fixed = await runPrompt(selection);
-            el.result.textContent = fixed;
-            set("result", fixed);
-            el.status.textContent = statuses.idle;
+            doTransform(selection);
         });
     });
-    el.clipboardButton.addEventListener("click", async () => {
-        // TODO: must abstract stuff before implementing this & duplicating everything
-        alert("Not implemented yet");
+    el.clipboardButton.addEventListener("click", () => {
+        // FIXME: Pending promise forever
+        console.log("getting clipboard...");
+        navigator.clipboard.readText().then(function (text) {
+            console.log("Text from clipboard: ", text);
+        }, function (error) {
+            console.error("Error reading text from clipboard: ", error);
+        });
     });
     el.apiKey.addEventListener("change", () => {
         if (validKey(el.apiKey.value)) {
