@@ -9,9 +9,6 @@
 // - Multiple tabs of prompts (speculative: inherit from OAI playground?)
 // --------- Helpers ---------
 const validKey = (k) => k && k.length == 51;
-function $(x) {
-    return document.querySelector(x);
-}
 const get = (k) => localStorage.getItem(k);
 const set = (k, v) => localStorage.setItem(k, v);
 // --------- OpenAI API helpers ---------
@@ -38,7 +35,7 @@ async function complete(prompt, options) {
     return await resp.json();
 }
 async function runPrompt(text) {
-    const prompt = $("#prompt").value.replaceAll("${text}", text);
+    const prompt = el.prompt.value.replaceAll("${text}", text);
     const result = await complete(prompt);
     console.log("API Response", result);
     const usedTokens = result["usage"]["completion_tokens"];
@@ -69,39 +66,46 @@ const statuses = {
     idle: "Idle",
     api: "Waiting for API response...",
 };
-const setStatus = (s) => ($("#status").textContent = statuses[s]);
+let el;
 document.addEventListener("DOMContentLoaded", () => {
-    var _a, _b, _c, _d;
     validKey(get("apiKey")) ? navigate("main") : navigate("login");
     if (!get("prompt"))
         set("prompt", startingPrompt);
-    $("p#result").textContent =
-        get("result") || "(None so far)";
-    $("textarea#prompt").value = get("prompt");
-    (_a = $("textarea#prompt")) === null || _a === void 0 ? void 0 : _a.addEventListener("change", (e) => {
-        set("prompt", e.target.value);
+    // Get elements
+    el = {
+        result: document.querySelector("p#result"),
+        prompt: document.querySelector("textarea#prompt"),
+        status: document.querySelector("#status"),
+        apiKey: document.querySelector("#api-key"),
+        selectionButton: document.querySelector("#run-selection"),
+        clipboardButton: document.querySelector("#run-clipboard"),
+    };
+    // Init elements
+    el.result.textContent = get("result") || "(None so far)";
+    el.prompt.value = get("prompt") || startingPrompt;
+    el.prompt.addEventListener("change", () => {
+        set("prompt", el.prompt.value);
     });
-    (_b = $("#run-selection")) === null || _b === void 0 ? void 0 : _b.addEventListener("click", async () => {
+    el.selectionButton.addEventListener("click", async () => {
         const tab = await getCurrentTab();
         chrome.scripting.executeScript({ target: { tabId: tab.id }, func: getSelectedString }, async function (r) {
             const selection = r[0].result;
             if (!selection)
                 return console.error("selection is null");
-            setStatus("api");
+            el.status.textContent = statuses.api;
             const fixed = await runPrompt(selection);
-            $("#result").textContent = fixed;
+            el.result.textContent = fixed;
             set("result", fixed);
-            setStatus("idle");
+            el.status.textContent = statuses.idle;
         });
     });
-    (_c = $("#run-clipboard")) === null || _c === void 0 ? void 0 : _c.addEventListener("click", async () => {
+    el.clipboardButton.addEventListener("click", async () => {
         // TODO: must abstract stuff before implementing this & duplicating everything
         alert("Not implemented yet");
     });
-    (_d = $("#api-key")) === null || _d === void 0 ? void 0 : _d.addEventListener("change", (e) => {
-        const value = e.target.value;
-        if (validKey(value)) {
-            set("apiKey", value);
+    el.apiKey.addEventListener("change", () => {
+        if (validKey(el.apiKey.value)) {
+            set("apiKey", el.apiKey.value);
             navigate("main");
         }
     });

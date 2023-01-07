@@ -11,9 +11,6 @@
 // --------- Helpers ---------
 
 const validKey = (k: string | null) => k && k.length == 51;
-function $(x: string): HTMLElement | null {
-  return document.querySelector(x);
-}
 
 const get = (k: string) => localStorage.getItem(k);
 const set = (k: string, v: string) => localStorage.setItem(k, v);
@@ -50,10 +47,7 @@ async function complete(prompt: string, options?: object) {
 }
 
 async function runPrompt(text: string) {
-  const prompt = ($("#prompt") as HTMLInputElement).value.replaceAll(
-    "${text}",
-    text
-  );
+  const prompt = el.prompt.value.replaceAll("${text}", text);
   const result = await complete(prompt);
   console.log("API Response", result);
 
@@ -93,21 +87,42 @@ const statuses: { [k: string]: string } = {
   idle: "Idle",
   api: "Waiting for API response...",
 };
-const setStatus = (s: string) =>
-  (($("#status") as HTMLSpanElement).textContent = statuses[s]);
+
+// All elements used for view
+type ElementsView = {
+  result: HTMLParagraphElement;
+  prompt: HTMLTextAreaElement;
+  status: HTMLSpanElement;
+  apiKey: HTMLInputElement;
+  selectionButton: HTMLButtonElement;
+  clipboardButton: HTMLButtonElement;
+};
+
+let el: ElementsView;
 
 document.addEventListener("DOMContentLoaded", () => {
   validKey(get("apiKey")) ? navigate("main") : navigate("login");
   if (!get("prompt")) set("prompt", startingPrompt);
 
-  ($("p#result") as HTMLParagraphElement).textContent =
-    get("result") || "(None so far)";
-  ($("textarea#prompt") as HTMLTextAreaElement).value = get("prompt")!;
-  $("textarea#prompt")?.addEventListener("change", (e) => {
-    set("prompt", (e.target as HTMLTextAreaElement).value);
+  // Get elements
+  el = {
+    result: document.querySelector("p#result"),
+    prompt: document.querySelector("textarea#prompt"),
+    status: document.querySelector("#status"),
+    apiKey: document.querySelector("#api-key"),
+    selectionButton: document.querySelector("#run-selection"),
+    clipboardButton: document.querySelector("#run-clipboard"),
+  } as ElementsView;
+
+  // Init elements
+  el.result.textContent = get("result") || "(None so far)";
+  el.prompt.value = get("prompt") || startingPrompt;
+
+  el.prompt.addEventListener("change", () => {
+    set("prompt", el.prompt.value);
   });
 
-  $("#run-selection")?.addEventListener("click", async () => {
+  el.selectionButton.addEventListener("click", async () => {
     const tab = await getCurrentTab();
     chrome.scripting.executeScript(
       { target: { tabId: tab.id! }, func: getSelectedString },
@@ -115,24 +130,23 @@ document.addEventListener("DOMContentLoaded", () => {
         const selection = r[0].result;
         if (!selection) return console.error("selection is null");
 
-        setStatus("api");
+        el.status.textContent = statuses.api;
         const fixed = await runPrompt(selection);
-        ($("#result") as HTMLInputElement).textContent = fixed;
+        el.result.textContent = fixed;
         set("result", fixed);
-        setStatus("idle");
+        el.status.textContent = statuses.idle;
       }
     );
   });
 
-  $("#run-clipboard")?.addEventListener("click", async () => {
+  el.clipboardButton.addEventListener("click", async () => {
     // TODO: must abstract stuff before implementing this & duplicating everything
     alert("Not implemented yet");
   });
 
-  $("#api-key")?.addEventListener("change", (e) => {
-    const value = (e.target as HTMLInputElement).value;
-    if (validKey(value)) {
-      set("apiKey", value);
+  el.apiKey.addEventListener("change", () => {
+    if (validKey(el.apiKey.value)) {
+      set("apiKey", el.apiKey.value);
       navigate("main");
     }
   });
