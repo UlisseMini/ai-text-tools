@@ -1,0 +1,10 @@
+{
+  "name": "ai-text-tools",
+  "version": "1.0.0",
+  "main": "main.js",
+  "author": "Ulisse Mini <ulisse.mini@gmail.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/chrome": "^0.0.206"
+  }
+}

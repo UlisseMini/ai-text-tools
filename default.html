@@ -5,16 +5,41 @@
       .view { display: none; }
       .view:target { display: block; }
       textarea { display: block; width: 60ch; height: 20ch; }
+      .tab {
+        width: 100px;
+        height: 20px;
+        background: lightgray;
+        border-radius: 2px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+      .tab-active {
+        background: gray;
+      }
+      .tabs {
+        display: flex;
+        gap: 4px;
+        margin: 4px 0;
+      }
+      button {
+        border-radius: 2px;
+        background: lightgray;
+        outline: none;
+        border: none;
+      }
     </style>
   </head>
 
   <body>
     <!-- Views depending on state of extension -->
-    <div id="login" class="view">
-      <input id="api-key" type="text" placeholder="OpenAI API Key" />
-    </div>
-
     <div id="main" class="view">
+      <div class="tabs">
+        <div class="tab tab-active">Tab1</div>
+        <div class="tab">Tab2</div>
+        <button class="newTab">+</button>
+      </div>
+
       <textarea id="prompt"></textarea>
       <button id="run-selection">Run on selection</button>
       <button id="run-clipboard">Run on clipboard</button>
@@ -22,6 +47,11 @@
       <h3>Output</h3>
       <p id="result">(None so far)</p>
     </div>
+
+    <div id="login" class="view">
+      <input id="api-key" type="text" placeholder="OpenAI API Key" />
+    </div>
+
     <script src="main.js"></script>
   </body>
 </html>
